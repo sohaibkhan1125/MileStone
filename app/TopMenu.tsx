@@ -12,13 +12,14 @@ const Head = () => {
 
   return (
     <div>
-      <nav className="bg-white border-gray-200 dark:bg-gray-900">
+      <nav className="bg-transparent border-gray-200">
         <div className="max-w-screen-xl flex flex-wrap items-center justify-between mx-auto p-4">
-          <div className="flex items-center justify-between w-full md:w-auto  ">
-            <a href="/" className="flex items-center space-x-3 rtl:space-x-reverse">
-              <img src="/logo.svg" className="h-8" alt="Flowbite Logo" />
-              <span className="self-center text-2xl font-semibold whitespace-nowrap dark:text-white">AI Generator</span>
+          <div className="flex items-center justify-between w-full md:w-auto">
+            <div className=''>
+            <a href="/" className="flex items-center space-x-3 rtl:space-x-reverse md:-mt-5">
+              <img src="/logo.png" className="h-[150px]" alt="Logo" />
             </a>
+            </div>
             <div className="flex items-center space-x-3 rtl:space-x-reverse md:hidden">
               <Link href={'/dashboard'}>
                 <button className='bg-blue-500 hover:bg-blue-700 text-white px-4 py-2 rounded-lg hidden md:block'>Get Started</button>
@@ -31,7 +32,7 @@ const Head = () => {
               </button>
             </div>
           </div>
-          <div className={`items-center justify-between w-full md:flex md:w-auto ${isMenuOpen ? 'block' : 'hidden'}`} id="navbar-user">
+          <div className={`items-center justify-between w-full md:-mt-20 md:flex md:w-auto ${isMenuOpen ? 'block' : 'hidden'}`} id="navbar-user">
             <ul className="flex flex-col font-medium p-4 md:p-0 mt-4 border border-gray-100 rounded-lg bg-gray-50 md:space-x-8 rtl:space-x-reverse md:flex-row md:mt-0 md:border-0 md:bg-white dark:bg-gray-800 md:dark:bg-gray-900 dark:border-gray-700">
               <Link href={'/'}>
                 <li>
@@ -58,7 +59,7 @@ const Head = () => {
               </Link>
             </ul>
           </div>
-          <div className="hidden md:flex items-center space-x-3 rtl:space-x-reverse md:order-2">
+          <div className="hidden md:flex items-center space-x-3 rtl:space-x-reverse md:order-2 md:-mt-20">
             <Link href={'/dashboard'}>
               <button className='bg-blue-500 hover:bg-blue-700 text-white px-4 py-2 rounded-lg'>Get Started</button>
             </Link>

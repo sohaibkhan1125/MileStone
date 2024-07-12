@@ -11,8 +11,8 @@ const Footer = () => {
            
             <div className="py-16 flex justify-between items-center flex-col gap-8 lg:flex-row">
                 <a href="/"  className="flex justify-center ">
-                    <img src="/logo.svg" alt="logo" />
-                    <h2 className='text-white font-semibold text-2xl p-2'>AI Generator</h2>
+                    <img src="/logo.png" className='h-[150px]' alt="logo" />
+                    <h2 className='text-white font-semibold text-2xl p-2'></h2>
                 </a>
                 <ul className="text-lg text-center sm:flex items-cente justify-center gap-14 lg:gap-10 xl:gap-14 transition-all duration-500">
                     <Link href={'/'}>
@@ -66,7 +66,7 @@ const Footer = () => {
          
             <div className="py-7 border-t border-gray-700">
                 <div className="flex items-center justify-center">
-                    <span className="text-gray-400 ">©<a href="/">AI Generator</a>2024, All rights reserved.</span>
+                    <span className="text-gray-400 ">©<a href="/">Sound Bite</a>2024, All rights reserved.</span>
                 </div>
             </div>
         </div>
