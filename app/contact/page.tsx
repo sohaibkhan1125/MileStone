@@ -6,9 +6,9 @@ const Page = () => {
   return (
     <section>
       <TopMenu />
-      <div className='p-20'>
+      <div className='p-5 text-white'>
         <h1>Contact Us !</h1>
-        <h2 style={{ textAlign: 'center' }}>Welcome to <span id="W_Name"> Sound Bite</span>!</h2>
+        <h2 style={{ textAlign: 'center' }} className='text-white text-2xl'>Welcome to <span id="W_Name"> Sound Bite</span>!</h2>
 
         <p style={{ fontSize: '17px' }}>Please email us if you have any queries about the site, advertising, or anything else.</p>
 
@@ -29,8 +29,8 @@ const Page = () => {
             <b><span id="W_whatsapp"><a href="tel:"></a></span></b><br />
           </p>    
 
-          <h3 style={{ color: '#3e005d' }}>We will revert you as soon as possible...!</h3>
-          <p style={{ color: '#3e005d', textAlign: 'center' }}>
+          <h3 style={{ color: '#fff' }}>We will revert you as soon as possible...!</h3>
+          <p style={{ color: '#fff', textAlign: 'center' }}>
             Thank you for contacting us! <br /><b>Have a great day</b>
           </p>
           

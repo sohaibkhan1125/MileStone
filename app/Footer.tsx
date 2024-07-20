@@ -11,7 +11,7 @@ const Footer = () => {
            
             <div className="py-16 flex justify-between items-center flex-col gap-8 lg:flex-row">
                 <a href="/"  className="flex justify-center ">
-                    <img src="/logo.png" className='h-[150px]' alt="logo" />
+                    <img src="/logo1.png" className='h-[150px]' alt="logo" />
                     <h2 className='text-white font-semibold text-2xl p-2'></h2>
                 </a>
                 <ul className="text-lg text-center sm:flex items-cente justify-center gap-14 lg:gap-10 xl:gap-14 transition-all duration-500">

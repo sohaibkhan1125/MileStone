@@ -6,7 +6,7 @@ const About = () => {
   return (
     <section>
       <TopMenu />
-      <div className='p-5'>
+      <div className='p-5 text-white'>
         <h2>About Us!</h2>
         <h3 style={{ textAlign: 'center' }}>
           Welcome To <span id="W_Name1">Sound Bite</span>
