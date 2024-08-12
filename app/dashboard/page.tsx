@@ -30,6 +30,7 @@ const Page = () => {
     localStorage.setItem('playlist', JSON.stringify(playlist));
   }, [playlist]);
 
+  
   const fetchDownloadLinks = async (url: string) => {
     setLoading(true);
     const apiUrl = `https://all-video-downloader2.p.rapidapi.com/youtube/download?url=${encodeURIComponent(url)}`;
