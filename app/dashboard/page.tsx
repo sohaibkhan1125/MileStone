@@ -33,14 +33,14 @@ const Page = () => {
   
   const fetchDownloadLinks = async (url: string) => {
     setLoading(true);
-    const apiUrl = `https://all-video-downloader2.p.rapidapi.com/youtube/download?url=${encodeURIComponent(url)}`;
+    const apiUrl = `https://social-media-video-downloader.p.rapidapi.com/smvd/get/all?url=${encodeURIComponent(url)}`;
     const apiKey = 'cca330428dmsh4b459b029c77e3cp1a7504jsn8f61efbba564';
 
     const options = {
       method: 'GET',
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'all-video-downloader2.p.rapidapi.com'
+        'x-rapidapi-host': 'social-media-video-downloader.p.rapidapi.com'
       }
     };
 
