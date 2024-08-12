@@ -39,7 +39,7 @@ const Page = () => {
       method: 'GET',
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'youtube-search-and-download1.p.rapidapi.com'
+        'x-rapidapi-host': 'all-video-downloader2.p.rapidapi.com''
       }
     };
 
