@@ -1,4 +1,5 @@
 'use client';
+
 import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
@@ -30,17 +31,16 @@ const Page = () => {
     localStorage.setItem('playlist', JSON.stringify(playlist));
   }, [playlist]);
 
-  
   const fetchDownloadLinks = async (url: string) => {
     setLoading(true);
-    const apiUrl = `https://social-media-video-downloader.p.rapidapi.com/smvd/get/all?url=${encodeURIComponent(url)}`;
-    const apiKey = 'cca330428dmsh4b459b029c77e3cp1a7504jsn8f61efbba564';
+    const apiUrl = `https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${extractVideoId(url)}`;
+    const apiKey = 'b9b276d0c1msh822603b0c726babp1e9c4djsn4f61efbba564';
 
     const options = {
       method: 'GET',
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'social-media-video-downloader.p.rapidapi.com'
+        'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com'
       }
     };
 
@@ -48,19 +48,15 @@ const Page = () => {
       const response = await fetch(apiUrl, options);
       const data = await response.json();
 
-      if (data.urlMuxed) {
-        setDownloadLinks([
-          { quality: 'Muxed (Video + Audio)', link: data.urlMuxed },
-          { quality: 'Video Only', link: data.urlVideoOnly },
-          { quality: 'Audio Only', link: data.audioOnly }
-        ]);
-        setYoutubeEmbedUrl(data.urlMuxed);
-      } else if (data.urlVideoOnly) {
-        setDownloadLinks([
-          { quality: 'Video Only', link: data.urlVideoOnly },
-          { quality: 'Audio Only', link: data.audioOnly }
-        ]);
-        setYoutubeEmbedUrl(data.urlVideoOnly);
+      if (data.status === true && data.errorId === 'Success') {
+        const videoLinks: DownloadLink[] = [
+          { quality: 'Muxed (Video + Audio)', link: data.videos.items[0]?.url || '' },
+          { quality: 'Video Only', link: data.videos.items[1]?.url || '' },
+          { quality: 'Audio Only', link: data.audios.items[0]?.url || '' }
+        ].filter(link => link.link); // Filter out empty links
+
+        setDownloadLinks(videoLinks);
+        setYoutubeEmbedUrl(videoLinks.find(link => link.quality === 'Muxed (Video + Audio)')?.link || '');
       } else {
         alert('Failed to retrieve video. Please check the URL.');
       }
@@ -70,6 +66,12 @@ const Page = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const extractVideoId = (url: string): string | null => {
+    const regex = /[?&]v=([^&#]*)/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
   };
 
   const handleDownload = () => {
@@ -120,7 +122,6 @@ const Page = () => {
 
     try {
       await Promise.all(promises);
-      
       zip.generateAsync({ type: 'blob' }).then(content => {
         FileSaver.saveAs(content, 'playlist.zip');
       });
@@ -160,7 +161,6 @@ const Page = () => {
   };
 
   useEffect(() => {
-    // Scroll to results when downloadLinks change
     if (downloadLinks.length > 0) {
       const resultsElement = document.getElementById('downloadLinks');
       if (resultsElement) {
@@ -213,7 +213,7 @@ const Page = () => {
           </div>
         )}
 
-        <div className='flex flex-col  justify-center items-center'>
+        <div className='flex flex-col justify-center items-center'>
           <div id="downloadLinks">
             {downloadLinks.map((link, index) => (
               <div key={index} className="mb-4 flex flex-col md:flex-row gap-y-5">
@@ -227,7 +227,7 @@ const Page = () => {
                 {link.quality.toLowerCase().includes('audio') && (
                   <button
                     onClick={() => addToPlaylist(link)}
-                    className="bg-green-500 text-white  px-4 py-2 rounded hover:bg-green-600 ml-2"
+                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 ml-2"
                   >
                     Add to Playlist
                   </button>
@@ -244,40 +244,33 @@ const Page = () => {
             ))}
           </div>
         </div>
-        
+
         {playlist.length > 0 && (
-          <div className="mt-4">
-            <h2 className="text-2xl text-white  font-bold mb-2">Playlist</h2>
-            <ul className="mt-2">
+          <div className="mt-8">
+            <h2 className="text-xl font-bold text-white mb-4">Playlist</h2>
+            <ul className="list-disc list-inside">
               {playlist.map((audio, index) => (
-                <li key={index} className="mb-4">
-                  <audio controls className="w-full">
-                    <source src={audio.link} type="audio/mp3" />
-                    Your browser does not support the audio element.
-                  </audio>
+                <li key={index} className="mb-2 flex justify-between items-center">
+                  <span>{audio.quality}</span>
+                  <button
+                    onClick={() => {
+                      setPlaylist(playlist.filter((_, i) => i !== index));
+                    }}
+                    className="text-red-500 hover:text-red-700"
+                  >
+                    Remove
+                  </button>
                 </li>
               ))}
             </ul>
             <button
               onClick={downloadAllAudios}
-              className="bg-purple-500 text-white px-4 py-2 rounded mt-4 hover:bg-purple-600 hidden"
+              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-              Download All Audios as Zip
+              Download All as ZIP
             </button>
           </div>
         )}
-        
-       <div className='text-white flex flex-col gap-y-2 mt-10'>
-        <h1 className='text-4xl font-semibold'>How to Download YouTube Videos?</h1>
-        
-        <p className='text-xl'>1: Paste the YouTube video URL into the input field.</p>
-        <p className='text-xl'>2: Click on the "Download Now" button.</p>
-        <p className='text-xl'>2: Choose the desired video quality and format from the download links provided.</p>
-        <p className='text-xl'>2: If available, you can download the video-only or audio-only formats separately.</p>
-        <p className='text-xl'>2: For multiple videos, you can create a playlist and download them as a zip file.</p>
-       
-       </div>
-        
       </div>
       <Footer />
     </section>
