@@ -30,7 +30,6 @@ const Page = () => {
     localStorage.setItem('playlist', JSON.stringify(playlist));
   }, [playlist]);
 
-  
   const fetchDownloadLinks = async (url: string) => {
     setLoading(true);
     const apiUrl = `https://social-media-video-downloader.p.rapidapi.com/smvd/get/all?url=${encodeURIComponent(url)}`;
@@ -40,7 +39,8 @@ const Page = () => {
       method: 'GET',
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'social-media-video-downloader.p.rapidapi.com'
+        'x-rapidapi-host': 'social-media-video-downloader.p.rapidapi.com',
+        'Content-Type': 'application/json'
       }
     };
 
@@ -48,19 +48,14 @@ const Page = () => {
       const response = await fetch(apiUrl, options);
       const data = await response.json();
 
-      if (data.urlMuxed) {
-        setDownloadLinks([
-          { quality: 'Muxed (Video + Audio)', link: data.urlMuxed },
-          { quality: 'Video Only', link: data.urlVideoOnly },
-          { quality: 'Audio Only', link: data.audioOnly }
-        ]);
-        setYoutubeEmbedUrl(data.urlMuxed);
-      } else if (data.urlVideoOnly) {
-        setDownloadLinks([
-          { quality: 'Video Only', link: data.urlVideoOnly },
-          { quality: 'Audio Only', link: data.audioOnly }
-        ]);
-        setYoutubeEmbedUrl(data.urlVideoOnly);
+      if (data && Array.isArray(data)) {
+        const links: DownloadLink[] = data.map((item: any) => ({
+          quality: item.quality,
+          link: item.url
+        }));
+
+        setDownloadLinks(links);
+        setYoutubeEmbedUrl(links.length > 0 ? links[0].link : '');
       } else {
         alert('Failed to retrieve video. Please check the URL.');
       }
@@ -247,37 +242,28 @@ const Page = () => {
         
         {playlist.length > 0 && (
           <div className="mt-4">
-            <h2 className="text-2xl text-white  font-bold mb-2">Playlist</h2>
-            <ul className="mt-2">
+            <h2 className="text-xl font-bold mb-4 text-white">Playlist</h2>
+            <ul>
               {playlist.map((audio, index) => (
-                <li key={index} className="mb-4">
-                  <audio controls className="w-full">
-                    <source src={audio.link} type="audio/mp3" />
-                    Your browser does not support the audio element.
-                  </audio>
+                <li key={index} className="flex items-center mb-2">
+                  <span className="text-white">{audio.quality}</span>
+                  <button
+                    onClick={() => setPlaylist(playlist.filter((item) => item.link !== audio.link))}
+                    className="ml-4 text-red-500"
+                  >
+                    Remove
+                  </button>
                 </li>
               ))}
             </ul>
             <button
               onClick={downloadAllAudios}
-              className="bg-purple-500 text-white px-4 py-2 rounded mt-4 hover:bg-purple-600 hidden"
+              className="text-white bg-blue-500 px-4 py-2 rounded hover:bg-blue-600"
             >
-              Download All Audios as Zip
+              Download All as ZIP
             </button>
           </div>
         )}
-        
-       <div className='text-white flex flex-col gap-y-2 mt-10'>
-        <h1 className='text-4xl font-semibold'>How to Download YouTube Videos?</h1>
-        
-        <p className='text-xl'>1: Paste the YouTube video URL into the input field.</p>
-        <p className='text-xl'>2: Click on the "Download Now" button.</p>
-        <p className='text-xl'>2: Choose the desired video quality and format from the download links provided.</p>
-        <p className='text-xl'>2: If available, you can download the video-only or audio-only formats separately.</p>
-        <p className='text-xl'>2: For multiple videos, you can create a playlist and download them as a zip file.</p>
-       
-       </div>
-        
       </div>
       <Footer />
     </section>
