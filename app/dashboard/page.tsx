@@ -1,5 +1,4 @@
 'use client';
-
 import React, { useState, useEffect } from 'react';
 import JSZip from 'jszip';
 import FileSaver from 'file-saver';
@@ -31,23 +30,42 @@ const Page = () => {
     localStorage.setItem('playlist', JSON.stringify(playlist));
   }, [playlist]);
 
+  const extractVideoId = (url: string) => {
+    const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^\s&?]{11})/;
+    const match = url.match(regex);
+    return match ? match[1] : null;
+  };
+
   const fetchDownloadLinks = async (url: string) => {
     setLoading(true);
-    const apiUrl = `https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${extractVideoId(url)}`;
+    setDownloadLinks([]);
+    setYoutubeEmbedUrl('');
+
+    const videoId = extractVideoId(url);
+    if (!videoId) {
+      alert('Invalid YouTube URL.');
+      setLoading(false);
+      return;
+    }
+
+    const apiUrl = `https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${videoId}`;
     const apiKey = 'b9b276d0c1msh822603b0c726babp1e9c4djsn4f61efbba564';
 
     const options = {
       method: 'GET',
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com'
-      }
+        'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com',
+      },
     };
 
     try {
       const response = await fetch(apiUrl, options);
-      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
 
+      const data = await response.json();
       if (data.status === true && data.errorId === 'Success') {
         const videoLinks: DownloadLink[] = [
           { quality: 'Muxed (Video + Audio)', link: data.videos.items[0]?.url || '' },
@@ -55,23 +73,21 @@ const Page = () => {
           { quality: 'Audio Only', link: data.audios.items[0]?.url || '' }
         ].filter(link => link.link); // Filter out empty links
 
-        setDownloadLinks(videoLinks);
-        setYoutubeEmbedUrl(videoLinks.find(link => link.quality === 'Muxed (Video + Audio)')?.link || '');
+        if (videoLinks.length === 0) {
+          alert('No download links available.');
+        } else {
+          setDownloadLinks(videoLinks);
+          setYoutubeEmbedUrl(videoLinks.find(link => link.quality === 'Muxed (Video + Audio)')?.link || '');
+        }
       } else {
-        alert('Failed to retrieve video. Please check the URL.');
+        alert(`Error from API: ${data.errorMessage || 'Failed to retrieve video.'}`);
       }
     } catch (error) {
       console.error('Error:', error);
-      alert('An error occurred while fetching the video.');
+      alert(`An error occurred while fetching the video: ${error.message}`);
     } finally {
       setLoading(false);
     }
-  };
-
-  const extractVideoId = (url: string): string | null => {
-    const regex = /[?&]v=([^&#]*)/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
   };
 
   const handleDownload = () => {
@@ -122,6 +138,7 @@ const Page = () => {
 
     try {
       await Promise.all(promises);
+
       zip.generateAsync({ type: 'blob' }).then(content => {
         FileSaver.saveAs(content, 'playlist.zip');
       });
@@ -161,6 +178,7 @@ const Page = () => {
   };
 
   useEffect(() => {
+    // Scroll to results when downloadLinks change
     if (downloadLinks.length > 0) {
       const resultsElement = document.getElementById('downloadLinks');
       if (resultsElement) {
@@ -213,7 +231,7 @@ const Page = () => {
           </div>
         )}
 
-        <div className='flex flex-col justify-center items-center'>
+        <div className='flex flex-col  justify-center items-center'>
           <div id="downloadLinks">
             {downloadLinks.map((link, index) => (
               <div key={index} className="mb-4 flex flex-col md:flex-row gap-y-5">
@@ -227,50 +245,40 @@ const Page = () => {
                 {link.quality.toLowerCase().includes('audio') && (
                   <button
                     onClick={() => addToPlaylist(link)}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 ml-2"
+                    className="text-blue-600 font-semibold bg-white px-2 py-2 rounded-xl hover:bg-slate-50 hover:underline"
                   >
                     Add to Playlist
-                  </button>
-                )}
-                {!link.quality.toLowerCase().includes('audio') && (
-                  <button
-                    onClick={() => window.open(link.link, '')}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                  >
-                    Download
                   </button>
                 )}
               </div>
             ))}
           </div>
-        </div>
 
-        {playlist.length > 0 && (
-          <div className="mt-8">
-            <h2 className="text-xl font-bold text-white mb-4">Playlist</h2>
-            <ul className="list-disc list-inside">
-              {playlist.map((audio, index) => (
-                <li key={index} className="mb-2 flex justify-between items-center">
-                  <span>{audio.quality}</span>
-                  <button
-                    onClick={() => {
-                      setPlaylist(playlist.filter((_, i) => i !== index));
-                    }}
-                    className="text-red-500 hover:text-red-700"
-                  >
-                    Remove
-                  </button>
-                </li>
-              ))}
-            </ul>
-            <button
-              onClick={downloadAllAudios}
-              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-            >
-              Download All as ZIP
-            </button>
-          </div>
-        )}
+          {playlist.length > 0 && (
+            <div>
+              <h2 className="text-xl font-bold mb-2 text-white">Your Playlist</h2>
+              <ul>
+                {playlist.map((item, index) => (
+                  <li key={index} className="flex justify-between items-center mb-2 text-white">
+                    <span>{item.quality}</span>
+                    <button
+                      onClick={() => removeFromPlaylist(item)}
+                      className="text-red-500 hover:underline"
+                    >
+                      Remove
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <button
+                onClick={downloadAllAudios}
+                className="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-xl text-lg px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 me-2 mb-2"
+              >
+                Download All as Zip
+              </button>
+            </div>
+          )}
+        </div>
       </div>
       <Footer />
     </section>
