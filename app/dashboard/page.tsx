@@ -30,61 +30,43 @@ const Page = () => {
     localStorage.setItem('playlist', JSON.stringify(playlist));
   }, [playlist]);
 
-  const extractVideoId = (url: string) => {
-    const regex = /(?:https?:\/\/)?(?:www\.)?(?:youtube\.com\/(?:[^\/\n\s]+\/\S+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^\s&?]{11})/;
-    const match = url.match(regex);
-    return match ? match[1] : null;
-  };
-
+  
   const fetchDownloadLinks = async (url: string) => {
     setLoading(true);
-    setDownloadLinks([]);
-    setYoutubeEmbedUrl('');
-
-    const videoId = extractVideoId(url);
-    if (!videoId) {
-      alert('Invalid YouTube URL.');
-      setLoading(false);
-      return;
-    }
-
-    const apiUrl = `https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${videoId}`;
-    const apiKey = 'b9b276d0c1msh822603b0c726babp1e9c4djsn4f61efbba564';
+    const apiUrl = `https://social-media-video-downloader.p.rapidapi.com/smvd/get/all?url=${encodeURIComponent(url)}`;
+    const apiKey = 'cca330428dmsh4b459b029c77e3cp1a7504jsn8f61efbba564';
 
     const options = {
       method: 'GET',
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com',
-      },
+        'x-rapidapi-host': 'social-media-video-downloader.p.rapidapi.com'
+      }
     };
 
     try {
       const response = await fetch(apiUrl, options);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-
       const data = await response.json();
-      if (data.status === true && data.errorId === 'Success') {
-        const videoLinks: DownloadLink[] = [
-          { quality: 'Muxed (Video + Audio)', link: data.videos.items[0]?.url || '' },
-          { quality: 'Video Only', link: data.videos.items[1]?.url || '' },
-          { quality: 'Audio Only', link: data.audios.items[0]?.url || '' }
-        ].filter(link => link.link); // Filter out empty links
 
-        if (videoLinks.length === 0) {
-          alert('No download links available.');
-        } else {
-          setDownloadLinks(videoLinks);
-          setYoutubeEmbedUrl(videoLinks.find(link => link.quality === 'Muxed (Video + Audio)')?.link || '');
-        }
+      if (data.urlMuxed) {
+        setDownloadLinks([
+          { quality: 'Muxed (Video + Audio)', link: data.urlMuxed },
+          { quality: 'Video Only', link: data.urlVideoOnly },
+          { quality: 'Audio Only', link: data.audioOnly }
+        ]);
+        setYoutubeEmbedUrl(data.urlMuxed);
+      } else if (data.urlVideoOnly) {
+        setDownloadLinks([
+          { quality: 'Video Only', link: data.urlVideoOnly },
+          { quality: 'Audio Only', link: data.audioOnly }
+        ]);
+        setYoutubeEmbedUrl(data.urlVideoOnly);
       } else {
-        alert(`Error from API: ${data.errorMessage || 'Failed to retrieve video.'}`);
+        alert('Failed to retrieve video. Please check the URL.');
       }
     } catch (error) {
       console.error('Error:', error);
-      alert(`An error occurred while fetching the video: ${error.message}`);
+      alert('An error occurred while fetching the video.');
     } finally {
       setLoading(false);
     }
@@ -138,7 +120,7 @@ const Page = () => {
 
     try {
       await Promise.all(promises);
-
+      
       zip.generateAsync({ type: 'blob' }).then(content => {
         FileSaver.saveAs(content, 'playlist.zip');
       });
@@ -245,40 +227,57 @@ const Page = () => {
                 {link.quality.toLowerCase().includes('audio') && (
                   <button
                     onClick={() => addToPlaylist(link)}
-                    className="text-blue-600 font-semibold bg-white px-2 py-2 rounded-xl hover:bg-slate-50 hover:underline"
+                    className="bg-green-500 text-white  px-4 py-2 rounded hover:bg-green-600 ml-2"
                   >
                     Add to Playlist
+                  </button>
+                )}
+                {!link.quality.toLowerCase().includes('audio') && (
+                  <button
+                    onClick={() => window.open(link.link, '')}
+                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                  >
+                    Download
                   </button>
                 )}
               </div>
             ))}
           </div>
-
-          {playlist.length > 0 && (
-            <div>
-              <h2 className="text-xl font-bold mb-2 text-white">Your Playlist</h2>
-              <ul>
-                {playlist.map((item, index) => (
-                  <li key={index} className="flex justify-between items-center mb-2 text-white">
-                    <span>{item.quality}</span>
-                    <button
-                      onClick={() => removeFromPlaylist(item)}
-                      className="text-red-500 hover:underline"
-                    >
-                      Remove
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <button
-                onClick={downloadAllAudios}
-                className="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-xl text-lg px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 me-2 mb-2"
-              >
-                Download All as Zip
-              </button>
-            </div>
-          )}
         </div>
+        
+        {playlist.length > 0 && (
+          <div className="mt-4">
+            <h2 className="text-2xl text-white  font-bold mb-2">Playlist</h2>
+            <ul className="mt-2">
+              {playlist.map((audio, index) => (
+                <li key={index} className="mb-4">
+                  <audio controls className="w-full">
+                    <source src={audio.link} type="audio/mp3" />
+                    Your browser does not support the audio element.
+                  </audio>
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={downloadAllAudios}
+              className="bg-purple-500 text-white px-4 py-2 rounded mt-4 hover:bg-purple-600 hidden"
+            >
+              Download All Audios as Zip
+            </button>
+          </div>
+        )}
+        
+       <div className='text-white flex flex-col gap-y-2 mt-10'>
+        <h1 className='text-4xl font-semibold'>How to Download YouTube Videos?</h1>
+        
+        <p className='text-xl'>1: Paste the YouTube video URL into the input field.</p>
+        <p className='text-xl'>2: Click on the "Download Now" button.</p>
+        <p className='text-xl'>2: Choose the desired video quality and format from the download links provided.</p>
+        <p className='text-xl'>2: If available, you can download the video-only or audio-only formats separately.</p>
+        <p className='text-xl'>2: For multiple videos, you can create a playlist and download them as a zip file.</p>
+       
+       </div>
+        
       </div>
       <Footer />
     </section>
