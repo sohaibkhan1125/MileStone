@@ -32,7 +32,7 @@ const Page = () => {
 
   const fetchDownloadLinks = async (url: string) => {
     setLoading(true);
-    const apiUrl = `https://youtube-search-and-download1.p.rapidapi.com/Download?url=${encodeURIComponent(url)}`;
+    const apiUrl = `https://all-video-downloader2.p.rapidapi.com/youtube/download?url=${encodeURIComponent(url)}`;
     const apiKey = 'cca330428dmsh4b459b029c77e3cp1a7504jsn8f61efbba564';
 
     const options = {
