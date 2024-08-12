@@ -40,7 +40,7 @@ const Page = () => {
       method: 'GET',
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'all-video-downloader2.p.rapidapi.com''
+        'x-rapidapi-host': 'all-video-downloader2.p.rapidapi.com'
       }
     };
 
