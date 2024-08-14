@@ -32,39 +32,50 @@ const Page = () => {
 
   const fetchDownloadLinks = async (url: string) => {
     setLoading(true);
-    const apiUrl = `https://youtube-video-and-shorts-downloader.p.rapidapi.com/smvd/get/all?url=${encodeURIComponent(url)}`;
+    const videoId = new URLSearchParams(new URL(url).search).get('v');
+    const apiUrl = `/v2/video/details?videoId=${videoId}`;
     const apiKey = 'b9b276d0c1msh822603b0c726babp1e9c4djsn4fbc5f965e78';
 
     const options = {
       method: 'GET',
+      hostname: 'youtube-media-downloader.p.rapidapi.com',
+      port: null,
+      path: apiUrl,
       headers: {
         'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'youtube-video-and-shorts-downloader.p.rapidapi.com',
-        'Content-Type': 'application/json'
+        'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com',
       }
     };
 
-    try {
-      const response = await fetch(apiUrl, options);
-      const data = await response.json();
+    const http = require('https');
 
-      if (data && Array.isArray(data)) {
-        const links: DownloadLink[] = data.map((item: any) => ({
-          quality: item.quality,
-          link: item.url
-        }));
+    const req = http.request(options, (res) => {
+      const chunks: Buffer[] = [];
 
-        setDownloadLinks(links);
-        setYoutubeEmbedUrl(links.length > 0 ? links[0].link : '');
-      } else {
-        alert('Failed to retrieve video. Please check the URL.');
-      }
-    } catch (error) {
-      console.error('Error:', error);
-      alert('An error occurred while fetching the video.');
-    } finally {
-      setLoading(false);
-    }
+      res.on('data', (chunk) => {
+        chunks.push(chunk);
+      });
+
+      res.on('end', () => {
+        const body = Buffer.concat(chunks).toString();
+        const data = JSON.parse(body);
+
+        if (data && data.formats) {
+          const links: DownloadLink[] = data.formats.map((format: any) => ({
+            quality: format.qualityLabel || 'Audio',
+            link: format.url
+          }));
+
+          setDownloadLinks(links);
+          setYoutubeEmbedUrl(links.length > 0 ? links[0].link : '');
+        } else {
+          alert('Failed to retrieve video. Please check the URL.');
+        }
+        setLoading(false);
+      });
+    });
+
+    req.end();
   };
 
   const handleDownload = () => {
@@ -115,7 +126,7 @@ const Page = () => {
 
     try {
       await Promise.all(promises);
-      
+
       zip.generateAsync({ type: 'blob' }).then(content => {
         FileSaver.saveAs(content, 'playlist.zip');
       });
@@ -208,7 +219,7 @@ const Page = () => {
           </div>
         )}
 
-        <div className='flex flex-col  justify-center items-center'>
+        <div className='flex flex-col justify-center items-center'>
           <div id="downloadLinks">
             {downloadLinks.map((link, index) => (
               <div key={index} className="mb-4 flex flex-col md:flex-row gap-y-5">
@@ -222,7 +233,7 @@ const Page = () => {
                 {link.quality.toLowerCase().includes('audio') && (
                   <button
                     onClick={() => addToPlaylist(link)}
-                    className="bg-green-500 text-white  px-4 py-2 rounded hover:bg-green-600 ml-2"
+                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 ml-2"
                   >
                     Add to Playlist
                   </button>
@@ -246,21 +257,18 @@ const Page = () => {
             <ul>
               {playlist.map((audio, index) => (
                 <li key={index} className="flex items-center mb-2">
-                  <span className="text-white">{audio.quality}</span>
-                  <button
-                    onClick={() => setPlaylist(playlist.filter((item) => item.link !== audio.link))}
-                    className="ml-4 text-red-500"
-                  >
-                    Remove
-                  </button>
+                  <span className="text-white mr-2">{audio.quality}</span>
+                  <audio controls src={audio.link} className="mr-2">
+                    Your browser does not support the audio element.
+                  </audio>
                 </li>
               ))}
             </ul>
             <button
               onClick={downloadAllAudios}
-              className="text-white bg-blue-500 px-4 py-2 rounded hover:bg-blue-600"
+              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-              Download All as ZIP
+              Download All Audios as Zip
             </button>
           </div>
         )}
