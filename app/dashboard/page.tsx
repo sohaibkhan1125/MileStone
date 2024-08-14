@@ -15,9 +15,10 @@ const Page = () => {
   const [videoUrl, setVideoUrl] = useState('');
   const [downloadLinks, setDownloadLinks] = useState<DownloadLink[]>([]);
   const [playlist, setPlaylist] = useState<DownloadLink[]>([]);
-  const [youtubeEmbedUrl, setYoutubeEmbedUrl] = useState<string>('');
+  const [youtubeEmbedUrl, setYoutubeEmbedUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [showClearIcon, setShowClearIcon] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const savedPlaylist = localStorage.getItem('playlist');
@@ -30,58 +31,90 @@ const Page = () => {
     localStorage.setItem('playlist', JSON.stringify(playlist));
   }, [playlist]);
 
-  const fetchDownloadLinks = async (url: string) => {
+  const fetchDownloadLinks = async (videoId: string) => {
     setLoading(true);
-    const videoId = new URLSearchParams(new URL(url).search).get('v');
-    const apiUrl = `/v2/video/details?videoId=${videoId}`;
+    setError(null);
+
+    const apiUrl = `https://youtube-media-downloader.p.rapidapi.com/v2/video/details?videoId=${videoId}`;
     const apiKey = 'b9b276d0c1msh822603b0c726babp1e9c4djsn4fbc5f965e78';
 
-    const options = {
-      method: 'GET',
-      hostname: 'youtube-media-downloader.p.rapidapi.com',
-      port: null,
-      path: apiUrl,
-      headers: {
-        'x-rapidapi-key': apiKey,
-        'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com',
+    try {
+      const response = await fetch(apiUrl, {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': apiKey,
+          'x-rapidapi-host': 'youtube-media-downloader.p.rapidapi.com',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
       }
-    };
 
-    const http = require('https');
+      const data = await response.json();
 
-    const req = http.request(options, (res) => {
-      const chunks: Buffer[] = [];
+      if (data.status) {
+        // Separate video and audio links
+        const videoFormats = new Map<string, string>();
+        const audioFormats = new Map<string, string>();
 
-      res.on('data', (chunk) => {
-        chunks.push(chunk);
-      });
-
-      res.on('end', () => {
-        const body = Buffer.concat(chunks).toString();
-        const data = JSON.parse(body);
-
-        if (data && data.formats) {
-          const links: DownloadLink[] = data.formats.map((format: any) => ({
-            quality: format.qualityLabel || 'Audio',
-            link: format.url
-          }));
-
-          setDownloadLinks(links);
-          setYoutubeEmbedUrl(links.length > 0 ? links[0].link : '');
-        } else {
-          alert('Failed to retrieve video. Please check the URL.');
+        if (data.videos && data.videos.items) {
+          data.videos.items.forEach((video: any) => {
+            const format = video.quality || 'Video';
+            if (!videoFormats.has(format)) {
+              videoFormats.set(format, video.url);
+            }
+          });
         }
-        setLoading(false);
-      });
-    });
 
-    req.end();
+        if (data.audios && data.audios.items) {
+          data.audios.items.forEach((audio: any) => {
+            const format = audio.quality || 'Audio';
+            if (!audioFormats.has(format)) {
+              audioFormats.set(format, audio.url);
+            }
+          });
+        }
+
+        const videoLinks: DownloadLink[] = Array.from(videoFormats.entries()).map(([quality, link]) => ({
+          quality,
+          link,
+        }));
+
+        const audioLinks: DownloadLink[] = Array.from(audioFormats.entries()).map(([quality, link]) => ({
+          quality,
+          link,
+        }));
+
+        // Update video player URL with the first video link
+        if (videoLinks.length > 0) {
+          setYoutubeEmbedUrl(videoLinks[0].link);
+        }
+
+        setDownloadLinks([...videoLinks, ...audioLinks]);
+      } else {
+        throw new Error('Failed to retrieve video. Please check the URL.');
+      }
+    } catch (error) {
+      setError('Failed to retrieve video. Please check the URL.');
+      console.error('Error fetching download links:', error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleDownload = () => {
-    setDownloadLinks([]);
-    setYoutubeEmbedUrl('');
-    fetchDownloadLinks(videoUrl);
+    const videoId = extractVideoId(videoUrl);
+    if (videoId) {
+      fetchDownloadLinks(videoId);
+    } else {
+      setError('Invalid video URL.');
+    }
+  };
+
+  const extractVideoId = (url: string): string | null => {
+    const urlParams = new URLSearchParams(new URL(url).search);
+    return urlParams.get('v');
   };
 
   const addToPlaylist = (link: DownloadLink) => {
@@ -138,35 +171,27 @@ const Page = () => {
 
   const handleClear = () => {
     setVideoUrl('');
+    setYoutubeEmbedUrl(null); // Clear the video player URL
     setShowClearIcon(false);
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setVideoUrl(e.target.value);
-    if (e.target.value.trim() !== '') {
-      setShowClearIcon(true);
-    } else {
-      setShowClearIcon(false);
-    }
+    setShowClearIcon(e.target.value.trim() !== '');
   };
 
   const handlePaste = () => {
-    const navigatorAny = navigator as any;
-    if (!navigatorAny.clipboard || !navigatorAny.clipboard.readText) {
-      console.error('Clipboard API not supported');
-      return;
-    }
-
-    navigatorAny.clipboard.readText().then((text: string) => {
-      setVideoUrl(text);
-      setShowClearIcon(true);
-    }).catch((error: Error) => {
-      console.error('Error reading from clipboard:', error);
-    });
+    navigator.clipboard.readText()
+      .then(text => {
+        setVideoUrl(text);
+        setShowClearIcon(true);
+      })
+      .catch(error => {
+        console.error('Error reading from clipboard:', error);
+      });
   };
 
   useEffect(() => {
-    // Scroll to results when downloadLinks change
     if (downloadLinks.length > 0) {
       const resultsElement = document.getElementById('downloadLinks');
       if (resultsElement) {
@@ -175,12 +200,16 @@ const Page = () => {
     }
   }, [downloadLinks]);
 
+  // Separate video and audio links
+  const videoLinks = Array.from(new Set(downloadLinks.filter(link => !link.quality.toLowerCase().includes('audio'))));
+  const audioLinks = Array.from(new Set(downloadLinks.filter(link => link.quality.toLowerCase().includes('audio'))));
+
   return (
     <section>
       <TopMenu />
       <div className="p-8 font-sans bg-[#232222] bg-cover -mt-20 bg-center text-center min-h-screen">
         <h1 className="text-2xl md:text-4xl font-bold mb-4 text-white">YouTube Video Downloader</h1>
-        
+
         <div className="relative">
           <input
             type="text"
@@ -195,8 +224,12 @@ const Page = () => {
             <FaPaste className="absolute right-3 top-3 cursor-pointer text-gray-400" onClick={handlePaste} />
           )}
         </div>
-        
-        <button onClick={handleDownload} type="button" className="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-xl text-lg px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 me-2 mb-2">
+
+        <button
+          onClick={handleDownload}
+          type="button"
+          className="text-gray-900 bg-gray-100 hover:bg-gray-200 focus:ring-4 focus:outline-none focus:ring-gray-100 font-medium rounded-xl text-lg px-5 py-2.5 text-center inline-flex items-center dark:focus:ring-gray-500 me-2 mb-2"
+        >
           <img className='h-8 px-1' src="https://cdn-icons-png.flaticon.com/128/15525/15525198.png" alt="" />
           Download Now
         </button>
@@ -219,56 +252,81 @@ const Page = () => {
           </div>
         )}
 
-        <div className='flex flex-col justify-center items-center'>
-          <div id="downloadLinks">
-            {downloadLinks.map((link, index) => (
-              <div key={index} className="mb-4 flex flex-col md:flex-row gap-y-5">
-                <a
-                  href={link.link}
-                  download
-                  className="text-blue-600 font-semibold bg-white px-2 py-2 rounded-xl hover:bg-slate-50 hover:underline mr-2"
-                >
-                  Download {link.quality}
-                </a>
-                {link.quality.toLowerCase().includes('audio') && (
-                  <button
-                    onClick={() => addToPlaylist(link)}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 ml-2"
-                  >
-                    Add to Playlist
-                  </button>
-                )}
-                {!link.quality.toLowerCase().includes('audio') && (
-                  <button
-                    onClick={() => window.open(link.link, '')}
-                    className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
-                  >
-                    Download
-                  </button>
-                )}
+        {error && (
+          <div className="text-red-500">{error}</div>
+        )}
+
+        <div id="downloadLinks">
+          {videoLinks.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-xl font-bold text-white mb-4">Video Formats</h2>
+              <div className="flex flex-wrap gap-4 justify-center">
+                {videoLinks.map((link, index) => (
+                  <div key={`video-${index}`} className="mb-4 flex flex-col md:flex-row gap-y-5 items-center">
+                    <a
+                      href={link.link}
+                      download
+                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    >
+                      Download {link.quality}
+                    </a>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {audioLinks.length > 0 && (
+            <div className="mt-8">
+              <h2 className="text-xl font-bold text-white mb-4">Audio Formats</h2>
+              <div className="flex flex-wrap gap-4 justify-center">
+                {audioLinks.map((link, index) => (
+                  <div key={`audio-${index}`} className="mb-4 flex flex-col md:flex-row gap-y-5 items-center">
+                    <button
+                      onClick={() => addToPlaylist(link)}
+                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 mr-2"
+                    >
+                      Add to Playlist
+                    </button>
+                    <a
+                      href={link.link}
+                      download
+                      className="bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600"
+                    >
+                      Download {link.quality}
+                    </a>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
-        
+
         {playlist.length > 0 && (
-          <div className="mt-4">
-            <h2 className="text-xl font-bold mb-4 text-white">Playlist</h2>
-            <ul>
+          <div className="mt-8">
+            <h2 className="text-xl font-bold text-white mb-4">Playlist</h2>
+            <ul className="list-disc pl-5 text-white">
               {playlist.map((audio, index) => (
-                <li key={index} className="flex items-center mb-2">
-                  <span className="text-white mr-2">{audio.quality}</span>
-                  <audio controls src={audio.link} className="mr-2">
+                <li key={index} className="mb-4 flex flex-col items-center">
+                  <span className="text-white">{audio.quality}</span>
+                  <audio className="w-full rounded-xl mt-2" controls>
+                    <source src={audio.link} type="audio/mp3" />
                     Your browser does not support the audio element.
                   </audio>
+                  <button
+                    onClick={() => setPlaylist(prev => prev.filter(item => item.link !== audio.link))}
+                    className="mt-2 text-red-500"
+                  >
+                    Remove
+                  </button>
                 </li>
               ))}
             </ul>
             <button
               onClick={downloadAllAudios}
-              className="mt-4 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+              className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
             >
-              Download All Audios as Zip
+              Download All as Zip
             </button>
           </div>
         )}
